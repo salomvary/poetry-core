@@ -1,7 +1,7 @@
 import copy
-import re
 
 from contextlib import contextmanager
+from email.utils import parseaddr
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import List
@@ -23,7 +23,19 @@ if TYPE_CHECKING:
 
     from .types import DependencyTypes
 
-AUTHOR_REGEX = re.compile(r"(?u)^(?P<name>[- .,\w\d'’\"()&]+)(?: <(?P<email>.+?)>)?$")
+
+def _parse_author(author: str) -> (str, Optional[str]):
+    # Try parsing author as an RFC 2822 email address
+    addr = parseaddr(author)
+    is_parse_error = addr == ("", "")
+
+    if not is_parse_error and (addr[0] == "" or addr[1] == ""):
+        # If only one part was found, we assume it was the name,
+        # not the email address (parseaddr falls back to email address
+        # but we want to fall back to name!)
+        return author, None
+
+    return addr
 
 
 class Package(PackageSpecification):
@@ -192,16 +204,15 @@ class Package(PackageSpecification):
         if not self._authors:
             return {"name": None, "email": None}
 
-        m = AUTHOR_REGEX.match(self._authors[0])
+        addr = _parse_author(self._authors[0])
 
-        if m is None:
+        if addr == ("", ""):
             raise ValueError(
                 "Invalid author string. Must be in the format: "
                 "John Smith <john@example.com>"
             )
 
-        name = m.group("name")
-        email = m.group("email")
+        (name, email) = addr
 
         return {"name": name, "email": email}
 
@@ -209,16 +220,15 @@ class Package(PackageSpecification):
         if not self._maintainers:
             return {"name": None, "email": None}
 
-        m = AUTHOR_REGEX.match(self._maintainers[0])
+        addr = _parse_author(self._maintainers[0])
 
-        if m is None:
+        if addr == ("", ""):
             raise ValueError(
                 "Invalid maintainer string. Must be in the format: "
                 "John Smith <john@example.com>"
             )
 
-        name = m.group("name")
-        email = m.group("email")
+        (name, email) = addr
 
         return {"name": name, "email": email}
 

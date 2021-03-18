@@ -14,15 +14,29 @@ def test_package_authors():
     assert package.author_name == "Sébastien Eustace"
     assert package.author_email == "sebastien@eustace.io"
 
+    # This is a valid unicode email address but the accented "á" characters
+    # are created using separate diacritics. That means certain letters can be
+    # encoded in more than one way but only one of them was recognized. Example:
+    # "á".encode() == b'a\xcc\x81'
+    # "á".encode() == b'\xc3\xa1'
+
+    package.authors.insert(0, "Márton Salomváry <salomvary@gmail.com>")
+    assert package.author_name == "Márton Salomváry"
+    assert package.author_email == "salomvary@gmail.com"
+
     package.authors.insert(0, "John Doe")
     assert package.author_name == "John Doe"
+    assert package.author_email is None
+
+    package.authors.insert(0, "<John Doe")
+    assert package.author_name == "<John Doe"
     assert package.author_email is None
 
 
 def test_package_authors_invalid():
     package = Package("foo", "0.1.0")
 
-    package.authors.insert(0, "<John Doe")
+    package.authors.insert(0, "<")
     with pytest.raises(ValueError) as e:
         package.author_name
 
